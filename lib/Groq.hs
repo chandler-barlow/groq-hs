@@ -1,98 +1,114 @@
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Groq where
 
-import Control.Monad.IO.Class (liftIO)
-import Data.Maybe (listToMaybe)
+import Control.Monad.Except
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding (encodeUtf8)
-import Data.Text.IO qualified as T
 import Groq.Types (
-    ChatChoice (..),
     ChatCompletion (..),
     ChatCreateRequest (..),
     ChatMessage (..),
-    ChatRole (..),
+    mkEmptyChatRequest,
  )
 import Network.HTTP.Req
 
-import Groq.Models
+import Data.Aeson qualified as Aeson
+import System.Environment (getEnv)
+
+{- |
+    I am thinking that this module should actually be split into
+    Groq.Internal and Groq.Simple.
+
+    I think that an api like this would be great.
+
+    @@
+    runGroq cfg $ do
+        res <- chat "What is the history of AI in a sentence?"
+        liftIO $ print res
+    @@
+
+    Maybe tools could be added like this?
+
+    @@
+    let cfg = def{tools = myTools}
+    runGroq cfg $ do
+        res <- chat "invoke your favorite tool"
+        liftIO $ print res
+    @@
+
+    I think that the chat completion request actually manifests as a form of configuration
+-}
 
 -- | Base URL: https://api.groq.com/openai/v1
+-- @Note: Maybe this kind of thing should be moved to an internals module?
 groqBase :: Url Https
 groqBase = https "api.groq.com" /: "openai" /: "v1"
 
--- | Call POST /openai/v1/chat/completions
-groqChatCompletions ::
+{- | @TODO add tools!
+Basically required for this to be usable for agents
+-}
+data GroqCtx = GroqCtx
+    { apiKey :: Text
+    , chatHistory :: [Groq.Types.ChatMessage]
+    , groqUrl :: Url Https
+    }
+
+{- | Attempts to load groq api key from GROQ_API_KEY
+TODO think about adding fallbacks or settings
+-}
+initGroq :: (MonadIO m) => m GroqCtx
+initGroq = do
+    apiKey <- fmap T.pack . liftIO $ getEnv "GROQ_API_KEY"
+    let chatHistory = mempty
+        groqUrl = groqBase
+    pure $ GroqCtx{..}
+
+newtype GroqError = GroqError {errMessage :: String}
+
+type GroqAPIKey = Text
+
+chatCompletionRequest ::
     (MonadHttp m) =>
-    -- | API key (GROQ_API_KEY)
-    Text ->
-    -- | Request body
-    ChatCreateRequest ->
-    -- | Parsed JSON response
-    m ChatCompletion
-groqChatCompletions apiKey reqBody = do
-    let url = groqBase /: "chat" /: "completions"
+    GroqAPIKey ->
+    Url Https ->
+    Groq.Types.ChatCreateRequest ->
+    m (Either GroqError Groq.Types.ChatCompletion)
+chatCompletionRequest apiKey groqUrl chatRequest = do
+    let url = groqUrl /: "chat" /: "completions"
         opts =
-            header "Authorization" ("Bearer " <> encodeUtf8 apiKey)
-                <> header "Content-Type" "application/json"
+            mconcat
+                [ header "Authorization" $ "Bearer " <> encodeUtf8 apiKey
+                , header "Content-Type" "application/json"
+                ]
+        reqBody = Aeson.toJSON chatRequest
     r <-
         req
             POST
             url
             (ReqBodyJson reqBody)
-            jsonResponse
+            lbsResponse
             opts
-    pure (responseBody r)
 
-{- | Build a simple ChatCreateRequest:
-  model = "llama-3.3-70b-versatile"
-  messages = [ { role=user, content="Explain the importance of fast language models" } ]
--}
-mkSimpleChatRequest :: ChatCreateRequest
-mkSimpleChatRequest =
-    ChatCreateRequest
-        { ccrMessages =
-            [ ChatMessage
-                { cmRole = ChatRoleUser
-                , cmContent = "Explain the importance of fast language models"
-                , cmName = Nothing
+    case Aeson.decode @Groq.Types.ChatCompletion $ responseBody r of
+        Nothing -> pure . Left $ GroqError "Error: Failed to parse chat completion response."
+        Just chat -> pure . Right $ chat
+
+groqChat ::
+    (MonadHttp m) =>
+    GroqCtx ->
+    Groq.Types.ChatMessage ->
+    m (Either GroqError (GroqCtx, Groq.Types.ChatCompletion))
+groqChat ctx msg = do
+    let chatHistory' = msg : ctx.chatHistory
+        chatReq =
+            Groq.Types.mkEmptyChatRequest
+                { ccrMessages = chatHistory'
                 }
-            ]
-        , ccrModel = Model_groq_compound_mini
-        , ccrCitationOptions = Nothing
-        , ccrCompoundCustom = Nothing
-        , ccrDisableToolValidation = Nothing
-        , ccrDocuments = Nothing
-        , ccrExcludeDomains = Nothing
-        , ccrFrequencyPenalty = Nothing
-        , ccrFunctionCall = Nothing
-        , ccrFunctions = Nothing
-        , ccrIncludeDomains = Nothing
-        , ccrIncludeReasoning = Nothing
-        , ccrLogitBias = Nothing
-        , ccrLogprobs = Nothing
-        , ccrMaxCompletionTokens = Nothing
-        , ccrMaxTokens = Nothing
-        , ccrMetadata = Nothing
-        , ccrN = Nothing
-        , ccrParallelToolCalls = Nothing
-        , ccrPresencePenalty = Nothing
-        , ccrReasoningEffort = Nothing
-        , ccrReasoningFormat = Nothing
-        , ccrResponseFormat = Nothing
-        , ccrSearchSettings = Nothing
-        , ccrSeed = Nothing
-        , ccrServiceTier = Nothing
-        , ccrStop = Nothing
-        , ccrStore = Nothing
-        , ccrStream = Nothing
-        , ccrStreamOptions = Nothing
-        , ccrTemperature = Nothing
-        , ccrToolChoice = Nothing
-        , ccrTools = Nothing
-        , ccrTopLogprobs = Nothing
-        , ccrTopP = Nothing
-        , ccrUser = Nothing
-        }
+    runExceptT $ do
+        chat <- ExceptT $ chatCompletionRequest ctx.apiKey ctx.groqUrl chatReq
+        pure (ctx{chatHistory = chatHistory'}, chat)

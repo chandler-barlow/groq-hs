@@ -11,6 +11,7 @@
 
       perSystem = { self', pkgs, ... }: {
         haskellProjects.default = {
+          basePackages = pkgs.haskell.packages.ghc912;
           devShell = {
             tools = hp: { 
               fourmolu = hp.fourmolu; 

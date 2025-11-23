@@ -53,16 +53,18 @@ module Groq.Types (
     FineTuningsList (..),
     FineTuningWrapper (..),
     FineTuningDeleteResponse (..),
+    mkUserChatMessage,
+    mkEmptyChatRequest,
 ) where
 
 import Data.Aeson
 import Data.Aeson.TH
-import Data.Char (toLower)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
-import Utils
+import Data.Default
 import Groq.Models
+import Utils
 
 --------------------------------------------------------------------------------
 -- Chat completions
@@ -121,8 +123,6 @@ data CitationOptions
 
 $(deriveJSON (sumOptions 15) ''CitationOptions)
 
--- "enabled", "disabled"
-
 data ChatMessage = ChatMessage
     { cmRole :: ChatRole
     , cmContent :: Text
@@ -132,42 +132,72 @@ data ChatMessage = ChatMessage
 
 $(deriveJSON (jsonOptions 2) ''ChatMessage)
 
--- | Request body for POST /openai/v1/chat/completions
+-- | Creates a user chat message with some defaults
+mkUserChatMessage :: Text -> ChatMessage
+mkUserChatMessage msg =
+    ChatMessage
+        { cmRole = ChatRoleUser
+        , cmContent = msg
+        , cmName = Nothing
+        }
+
+{- |
+    Request body for POST /openai/v1/chat/completions
+
+    @Warning:
+    Many of these are unimplemented but theoretically possible to use.
+    Highest priority would be adding tools I think.
+    Only messages really work at the moment
+-}
 data ChatCreateRequest = ChatCreateRequest
     { ccrMessages :: [ChatMessage]
-    -- ^ required
     , ccrModel :: ModelId
     , ccrCitationOptions :: Maybe CitationOptions
     , ccrCompoundCustom :: Maybe Value
+    -- ^ TODO
     , ccrDisableToolValidation :: Maybe Bool
     , ccrDocuments :: Maybe [Value]
+    -- ^ TODO
     , ccrExcludeDomains :: Maybe [Text]
     , ccrFrequencyPenalty :: Maybe Double
     , ccrFunctionCall :: Maybe Value -- deprecated in favor of tool_choice
+
+    -- ^ TODO: low priority
     , ccrFunctions :: Maybe [Value] -- deprecated in favor of tools
+
+    -- ^ TODO: low priority
     , ccrIncludeDomains :: Maybe [Text]
     , ccrIncludeReasoning :: Maybe Bool
     , ccrLogitBias :: Maybe Value
+    -- ^ TODO
     , ccrLogprobs :: Maybe Bool
     , ccrMaxCompletionTokens :: Maybe Int
     , ccrMaxTokens :: Maybe Int -- deprecated
     , ccrMetadata :: Maybe Value
+    -- ^ TODO
     , ccrN :: Maybe Int
     , ccrParallelToolCalls :: Maybe Bool
     , ccrPresencePenalty :: Maybe Double
     , ccrReasoningEffort :: Maybe ReasoningEffort
     , ccrReasoningFormat :: Maybe ReasoningFormat
     , ccrResponseFormat :: Maybe Value
+    -- ^ TODO
     , ccrSearchSettings :: Maybe Value
+    -- ^ TODO
     , ccrSeed :: Maybe Int
     , ccrServiceTier :: Maybe ServiceTier
     , ccrStop :: Maybe Value -- string or array
+
+    -- ^ TODO
     , ccrStore :: Maybe Bool
     , ccrStream :: Maybe Bool
     , ccrStreamOptions :: Maybe Value
+    -- ^ TODO
     , ccrTemperature :: Maybe Double
     , ccrToolChoice :: Maybe Value
+    -- ^ TODO: These are high value
     , ccrTools :: Maybe [Value]
+    -- ^ TODO: These are high value
     , ccrTopLogprobs :: Maybe Int
     , ccrTopP :: Maybe Double
     , ccrUser :: Maybe Text
@@ -175,6 +205,48 @@ data ChatCreateRequest = ChatCreateRequest
     deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''ChatCreateRequest)
+
+-- | Uses groq compound mini by default and includes no message
+mkEmptyChatRequest :: ChatCreateRequest
+mkEmptyChatRequest =
+    ChatCreateRequest
+        { ccrMessages = []
+        , ccrModel = Model_groq_compound_mini
+        , ccrCitationOptions = Nothing
+        , ccrCompoundCustom = Nothing
+        , ccrDisableToolValidation = Nothing
+        , ccrDocuments = Nothing
+        , ccrExcludeDomains = Nothing
+        , ccrFrequencyPenalty = Nothing
+        , ccrFunctionCall = Nothing
+        , ccrFunctions = Nothing
+        , ccrIncludeDomains = Nothing
+        , ccrIncludeReasoning = Nothing
+        , ccrLogitBias = Nothing
+        , ccrLogprobs = Nothing
+        , ccrMaxCompletionTokens = Nothing
+        , ccrMaxTokens = Nothing
+        , ccrMetadata = Nothing
+        , ccrN = Nothing
+        , ccrParallelToolCalls = Nothing
+        , ccrPresencePenalty = Nothing
+        , ccrReasoningEffort = Nothing
+        , ccrReasoningFormat = Nothing
+        , ccrResponseFormat = Nothing
+        , ccrSearchSettings = Nothing
+        , ccrSeed = Nothing
+        , ccrServiceTier = Nothing
+        , ccrStop = Nothing
+        , ccrStore = Nothing
+        , ccrStream = Nothing
+        , ccrStreamOptions = Nothing
+        , ccrTemperature = Nothing
+        , ccrToolChoice = Nothing
+        , ccrTools = Nothing
+        , ccrTopLogprobs = Nothing
+        , ccrTopP = Nothing
+        , ccrUser = Nothing
+        }
 
 data ChatChoice = ChatChoice
     { chcIndex :: Int
@@ -557,3 +629,11 @@ data FineTuningDeleteResponse = FineTuningDeleteResponse
     deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''FineTuningDeleteResponse)
+
+instance Default ChatMessage where
+    def =
+        ChatMessage
+            { cmRole = undefined
+            , cmContent = undefined
+            , cmName = undefined
+            }

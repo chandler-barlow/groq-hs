@@ -26,8 +26,10 @@ library
         Groq.Models
 
     build-depends:    
-        base ^>=4.20.2.0,
+        base,
         aeson,
+        mtl,
+        data-default,
         req,
         text
 
