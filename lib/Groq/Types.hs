@@ -1,228 +1,235 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Groq.Types
-  ( -- * Chat completions
-    ChatRole(..)
-  , ServiceTier(..)
-  , ReasoningEffort(..)
-  , ReasoningFormat(..)
-  , CitationOptions(..)
-  , ChatMessage(..)
-  , ChatCreateRequest(..)
-  , ChatChoice(..)
-  , ChatUsage(..)
-  , ChatUsageBreakdown(..)
-  , ChatXGroq(..)
-  , ChatCompletion(..)
+module Groq.Types (
+    -- * Chat completions
+    ChatRole (..),
+    ServiceTier (..),
+    ReasoningEffort (..),
+    ReasoningFormat (..),
+    CitationOptions (..),
+    ChatMessage (..),
+    ChatCreateRequest (..),
+    ChatChoice (..),
+    ChatUsage (..),
+    ChatUsageBreakdown (..),
+    ChatXGroq (..),
+    ChatCompletion (..),
 
     -- * Responses API
-  , TruncationStrategy(..)
-  , GroqResponseRequest(..)
-  , GroqResponseReasoning(..)
-  , GroqResponseTextConfig(..)
-  , GroqResponseUsage(..)
-  , GroqResponseUsageDetails(..)
-  , GroqResponseOutputItem(..)  -- simple typed "message" output
-  , GroqResponse(..)
+    TruncationStrategy (..),
+    GroqResponseRequest (..),
+    GroqResponseReasoning (..),
+    GroqResponseTextConfig (..),
+    GroqResponseUsage (..),
+    GroqResponseUsageDetails (..),
+    GroqResponseOutputItem (..), -- simple typed "message" output
+    GroqResponse (..),
 
     -- * Audio
-  , AudioTranscriptionResponse(..)
-  , AudioTranslationResponse(..)
+    AudioTranscriptionResponse (..),
+    AudioTranslationResponse (..),
 
     -- * Models
-  , Model(..)
-  , ModelsList(..)
+    Model (..),
+    ModelsList (..),
 
     -- * Batches
-  , BatchStatus(..)
-  , BatchRequestCounts(..)
-  , BatchObject(..)
-  , BatchesList(..)
-  , BatchCreateRequest(..)
+    BatchStatus (..),
+    BatchRequestCounts (..),
+    BatchObject (..),
+    BatchesList (..),
+    BatchCreateRequest (..),
 
     -- * Files
-  , FilePurpose(..)
-  , GroqFile(..)
-  , FilesList(..)
-  , FileDeleteResponse(..)
+    FilePurpose (..),
+    GroqFile (..),
+    FilesList (..),
+    FileDeleteResponse (..),
 
     -- * Fine Tuning
-  , FineTuningItem(..)
-  , FineTuningsList(..)
-  , FineTuningWrapper(..)
-  , FineTuningDeleteResponse(..)
-  ) where
+    FineTuningItem (..),
+    FineTuningsList (..),
+    FineTuningWrapper (..),
+    FineTuningDeleteResponse (..),
+) where
 
 import Data.Aeson
-import Utils
-import Models
 import Data.Aeson.TH
 import Data.Char (toLower)
 import Data.Text (Text)
 import GHC.Generics (Generic)
+
+import Utils
+import Groq.Models
 
 --------------------------------------------------------------------------------
 -- Chat completions
 --------------------------------------------------------------------------------
 
 data ChatRole
-  = ChatRoleUser
-  | ChatRoleAssistant
-  | ChatRoleSystem
-  | ChatRoleTool
-  | ChatRoleFunction
-  deriving (Show, Eq, Ord, Generic)
+    = ChatRoleUser
+    | ChatRoleAssistant
+    | ChatRoleSystem
+    | ChatRoleTool
+    | ChatRoleFunction
+    deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 8) ''ChatRole)
+
 -- "user", "assistant", "system", "tool", "function"
 
 data ServiceTier
-  = ServiceTierAuto
-  | ServiceTierOnDemand
-  | ServiceTierFlex
-  | ServiceTierPerformance
-  | ServiceTierDefault
-  deriving (Show, Eq, Ord, Generic)
+    = ServiceTierAuto
+    | ServiceTierOnDemand
+    | ServiceTierFlex
+    | ServiceTierPerformance
+    | ServiceTierDefault
+    deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 11) ''ServiceTier)
+
 -- "auto", "on_demand", "flex", "performance", "default"
 
 data ReasoningEffort
-  = ReasoningEffortNone
-  | ReasoningEffortDefault
-  | ReasoningEffortLow
-  | ReasoningEffortMedium
-  | ReasoningEffortHigh
-  deriving (Show, Eq, Ord, Generic)
+    = ReasoningEffortNone
+    | ReasoningEffortDefault
+    | ReasoningEffortLow
+    | ReasoningEffortMedium
+    | ReasoningEffortHigh
+    deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 15) ''ReasoningEffort)
+
 -- "none", "default", "low", "medium", "high"
 
 data ReasoningFormat
-  = ReasoningFormatHidden
-  | ReasoningFormatRaw
-  | ReasoningFormatParsed
-  deriving (Show, Eq, Ord, Generic)
+    = ReasoningFormatHidden
+    | ReasoningFormatRaw
+    | ReasoningFormatParsed
+    deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 15) ''ReasoningFormat)
+
 -- "hidden", "raw", "parsed"
 
 data CitationOptions
-  = CitationOptionsEnabled
-  | CitationOptionsDisabled
-  deriving (Show, Eq, Ord, Generic)
+    = CitationOptionsEnabled
+    | CitationOptionsDisabled
+    deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 15) ''CitationOptions)
+
 -- "enabled", "disabled"
 
 data ChatMessage = ChatMessage
-  { cmRole    :: ChatRole
-  , cmContent :: Text
-  , cmName    :: Maybe Text
-  }
-  deriving (Show, Eq, Generic)
+    { cmRole :: ChatRole
+    , cmContent :: Text
+    , cmName :: Maybe Text
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''ChatMessage)
 
 -- | Request body for POST /openai/v1/chat/completions
 data ChatCreateRequest = ChatCreateRequest
-  { ccrMessages           :: [ChatMessage]      -- ^ required
-  , ccrModel              :: ModelId
-  , ccrCitationOptions    :: Maybe CitationOptions
-  , ccrCompoundCustom     :: Maybe Value
-  , ccrDisableToolValidation :: Maybe Bool
-  , ccrDocuments          :: Maybe [Value]
-  , ccrExcludeDomains     :: Maybe [Text]
-  , ccrFrequencyPenalty   :: Maybe Double
-  , ccrFunctionCall       :: Maybe Value   -- deprecated in favor of tool_choice
-  , ccrFunctions          :: Maybe [Value] -- deprecated in favor of tools
-  , ccrIncludeDomains     :: Maybe [Text]
-  , ccrIncludeReasoning   :: Maybe Bool
-  , ccrLogitBias          :: Maybe Value
-  , ccrLogprobs           :: Maybe Bool
-  , ccrMaxCompletionTokens :: Maybe Int
-  , ccrMaxTokens          :: Maybe Int -- deprecated
-  , ccrMetadata           :: Maybe Value
-  , ccrN                  :: Maybe Int
-  , ccrParallelToolCalls  :: Maybe Bool
-  , ccrPresencePenalty    :: Maybe Double
-  , ccrReasoningEffort    :: Maybe ReasoningEffort
-  , ccrReasoningFormat    :: Maybe ReasoningFormat
-  , ccrResponseFormat     :: Maybe Value
-  , ccrSearchSettings     :: Maybe Value
-  , ccrSeed               :: Maybe Int
-  , ccrServiceTier        :: Maybe ServiceTier
-  , ccrStop               :: Maybe Value  -- string or array
-  , ccrStore              :: Maybe Bool
-  , ccrStream             :: Maybe Bool
-  , ccrStreamOptions      :: Maybe Value
-  , ccrTemperature        :: Maybe Double
-  , ccrToolChoice         :: Maybe Value
-  , ccrTools              :: Maybe [Value]
-  , ccrTopLogprobs        :: Maybe Int
-  , ccrTopP               :: Maybe Double
-  , ccrUser               :: Maybe Text
-  }
-  deriving (Show, Eq, Generic)
+    { ccrMessages :: [ChatMessage]
+    -- ^ required
+    , ccrModel :: ModelId
+    , ccrCitationOptions :: Maybe CitationOptions
+    , ccrCompoundCustom :: Maybe Value
+    , ccrDisableToolValidation :: Maybe Bool
+    , ccrDocuments :: Maybe [Value]
+    , ccrExcludeDomains :: Maybe [Text]
+    , ccrFrequencyPenalty :: Maybe Double
+    , ccrFunctionCall :: Maybe Value -- deprecated in favor of tool_choice
+    , ccrFunctions :: Maybe [Value] -- deprecated in favor of tools
+    , ccrIncludeDomains :: Maybe [Text]
+    , ccrIncludeReasoning :: Maybe Bool
+    , ccrLogitBias :: Maybe Value
+    , ccrLogprobs :: Maybe Bool
+    , ccrMaxCompletionTokens :: Maybe Int
+    , ccrMaxTokens :: Maybe Int -- deprecated
+    , ccrMetadata :: Maybe Value
+    , ccrN :: Maybe Int
+    , ccrParallelToolCalls :: Maybe Bool
+    , ccrPresencePenalty :: Maybe Double
+    , ccrReasoningEffort :: Maybe ReasoningEffort
+    , ccrReasoningFormat :: Maybe ReasoningFormat
+    , ccrResponseFormat :: Maybe Value
+    , ccrSearchSettings :: Maybe Value
+    , ccrSeed :: Maybe Int
+    , ccrServiceTier :: Maybe ServiceTier
+    , ccrStop :: Maybe Value -- string or array
+    , ccrStore :: Maybe Bool
+    , ccrStream :: Maybe Bool
+    , ccrStreamOptions :: Maybe Value
+    , ccrTemperature :: Maybe Double
+    , ccrToolChoice :: Maybe Value
+    , ccrTools :: Maybe [Value]
+    , ccrTopLogprobs :: Maybe Int
+    , ccrTopP :: Maybe Double
+    , ccrUser :: Maybe Text
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''ChatCreateRequest)
 
 data ChatChoice = ChatChoice
-  { chcIndex        :: Int
-  , chcMessage      :: ChatMessage
-  , chcLogprobs     :: Maybe Value
-  , chcFinishReason :: Maybe Text
-  }
-  deriving (Show, Eq, Generic)
+    { chcIndex :: Int
+    , chcMessage :: ChatMessage
+    , chcLogprobs :: Maybe Value
+    , chcFinishReason :: Maybe Text
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''ChatChoice)
 
 data ChatUsageBreakdown = ChatUsageBreakdown
-  { cubPromptTokens     :: Maybe Int
-  , cubCompletionTokens :: Maybe Int
-  , cubTotalTokens      :: Maybe Int
-  }
-  deriving (Show, Eq, Generic)
+    { cubPromptTokens :: Maybe Int
+    , cubCompletionTokens :: Maybe Int
+    , cubTotalTokens :: Maybe Int
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''ChatUsageBreakdown)
 
 data ChatUsage = ChatUsage
-  { cuQueueTime        :: Maybe Double
-  , cuPromptTokens     :: Maybe Int
-  , cuPromptTime       :: Maybe Double
-  , cuCompletionTokens :: Maybe Int
-  , cuCompletionTime   :: Maybe Double
-  , cuTotalTokens      :: Maybe Int
-  , cuTotalTime        :: Maybe Double
-  , cuUsageBreakdown   :: Maybe ChatUsageBreakdown
-  }
-  deriving (Show, Eq, Generic)
+    { cuQueueTime :: Maybe Double
+    , cuPromptTokens :: Maybe Int
+    , cuPromptTime :: Maybe Double
+    , cuCompletionTokens :: Maybe Int
+    , cuCompletionTime :: Maybe Double
+    , cuTotalTokens :: Maybe Int
+    , cuTotalTime :: Maybe Double
+    , cuUsageBreakdown :: Maybe ChatUsageBreakdown
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''ChatUsage)
 
 newtype ChatXGroq = ChatXGroq
-  { cxId :: Maybe Text
-  }
-  deriving (Show, Eq, Generic)
+    { cxId :: Maybe Text
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''ChatXGroq)
 
 -- | Response for POST /openai/v1/chat/completions
 data ChatCompletion = ChatCompletion
-  { ccId               :: Text
-  , ccObject           :: Text
-  , ccCreated          :: Int
-  , ccModel            :: Text
-  , ccChoices          :: [ChatChoice]
-  , ccUsage            :: Maybe ChatUsage
-  , ccSystemFingerprint :: Maybe Text
-  , ccServiceTier      :: Maybe ServiceTier
-  , ccXGroq            :: Maybe ChatXGroq
-  , ccMcpListTools     :: Maybe [Value]
-  }
-  deriving (Show, Eq, Generic)
+    { ccId :: Text
+    , ccObject :: Text
+    , ccCreated :: Int
+    , ccModel :: Text
+    , ccChoices :: [ChatChoice]
+    , ccUsage :: Maybe ChatUsage
+    , ccSystemFingerprint :: Maybe Text
+    , ccServiceTier :: Maybe ServiceTier
+    , ccXGroq :: Maybe ChatXGroq
+    , ccMcpListTools :: Maybe [Value]
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''ChatCompletion)
 
@@ -231,111 +238,112 @@ $(deriveJSON (jsonOptions 2) ''ChatCompletion)
 --------------------------------------------------------------------------------
 
 data TruncationStrategy
-  = TruncationAuto
-  | TruncationDisabled
-  deriving (Show, Eq, Ord, Generic)
+    = TruncationAuto
+    | TruncationDisabled
+    deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 10) ''TruncationStrategy)
+
 -- "auto", "disabled"
 
 data GroqResponseReasoning = GroqResponseReasoning
-  { grrEffort  :: Maybe ReasoningEffort
-  , grrSummary :: Maybe Text
-  }
-  deriving (Show, Eq, Generic)
+    { grrEffort :: Maybe ReasoningEffort
+    , grrSummary :: Maybe Text
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''GroqResponseReasoning)
 
 newtype GroqResponseTextConfig = GroqResponseTextConfig
-  { grtFormat :: Value
-  }
-  deriving (Show, Eq, Generic)
+    { grtFormat :: Value
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''GroqResponseTextConfig)
 
 -- | Request body for POST /openai/v1/responses
 data GroqResponseRequest = GroqResponseRequest
-  { grqInput          :: Value        -- string / array / other
-  , grqModel          :: Text
-  , grqInstructions   :: Maybe Text
-  , grqMaxOutputTokens :: Maybe Int
-  , grqMetadata       :: Maybe Value
-  , grqParallelToolCalls :: Maybe Bool
-  , grqReasoning      :: Maybe Value
-  , grqServiceTier    :: Maybe ServiceTier
-  , grqStore          :: Maybe Bool
-  , grqStream         :: Maybe Bool
-  , grqTemperature    :: Maybe Double
-  , grqText           :: Maybe GroqResponseTextConfig
-  , grqToolChoice     :: Maybe Value
-  , grqTools          :: Maybe [Value]
-  , grqTopP           :: Maybe Double
-  , grqTruncation     :: Maybe TruncationStrategy
-  , grqUser           :: Maybe Text
-  }
-  deriving (Show, Eq, Generic)
+    { grqInput :: Value -- string / array / other
+    , grqModel :: Text
+    , grqInstructions :: Maybe Text
+    , grqMaxOutputTokens :: Maybe Int
+    , grqMetadata :: Maybe Value
+    , grqParallelToolCalls :: Maybe Bool
+    , grqReasoning :: Maybe Value
+    , grqServiceTier :: Maybe ServiceTier
+    , grqStore :: Maybe Bool
+    , grqStream :: Maybe Bool
+    , grqTemperature :: Maybe Double
+    , grqText :: Maybe GroqResponseTextConfig
+    , grqToolChoice :: Maybe Value
+    , grqTools :: Maybe [Value]
+    , grqTopP :: Maybe Double
+    , grqTruncation :: Maybe TruncationStrategy
+    , grqUser :: Maybe Text
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''GroqResponseRequest)
 
 -- A convenient typed view of a simple "message" output item.
 data GroqResponseOutputItem = GroqResponseOutputItem
-  { groiType    :: Text
-  , groiId      :: Maybe Text
-  , groiStatus  :: Maybe Text
-  , groiRole    :: Maybe Text
-  , groiContent :: Maybe Value
-  }
-  deriving (Show, Eq, Generic)
+    { groiType :: Text
+    , groiId :: Maybe Text
+    , groiStatus :: Maybe Text
+    , groiRole :: Maybe Text
+    , groiContent :: Maybe Value
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 4) ''GroqResponseOutputItem)
 
 data GroqResponseUsageDetails = GroqResponseUsageDetails
-  { gruduCachedTokens    :: Maybe Int
-  , gruduReasoningTokens :: Maybe Int
-  }
-  deriving (Show, Eq, Generic)
+    { gruduCachedTokens :: Maybe Int
+    , gruduReasoningTokens :: Maybe Int
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 5) ''GroqResponseUsageDetails)
 
 data GroqResponseUsage = GroqResponseUsage
-  { gruInputTokens         :: Maybe Int
-  , gruInputTokensDetails  :: Maybe GroqResponseUsageDetails
-  , gruOutputTokens        :: Maybe Int
-  , gruOutputTokensDetails :: Maybe GroqResponseUsageDetails
-  , gruTotalTokens         :: Maybe Int
-  }
-  deriving (Show, Eq, Generic)
+    { gruInputTokens :: Maybe Int
+    , gruInputTokensDetails :: Maybe GroqResponseUsageDetails
+    , gruOutputTokens :: Maybe Int
+    , gruOutputTokensDetails :: Maybe GroqResponseUsageDetails
+    , gruTotalTokens :: Maybe Int
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''GroqResponseUsage)
 
 -- | Response for POST /openai/v1/responses
 data GroqResponse = GroqResponse
-  { grId                 :: Text
-  , grObject             :: Text             -- "response"
-  , grStatus             :: Text             -- completed | failed | ...
-  , grCreatedAt          :: Int
-  , grOutput             :: [GroqResponseOutputItem]
-  , grPreviousResponseId :: Maybe Text
-  , grModel              :: Text
-  , grReasoning          :: Maybe GroqResponseReasoning
-  , grMaxOutputTokens    :: Maybe Int
-  , grInstructions       :: Maybe Text
-  , grText               :: Maybe GroqResponseTextConfig
-  , grTools              :: [Value]
-  , grToolChoice         :: Value
-  , grTruncation         :: TruncationStrategy
-  , grMetadata           :: Value
-  , grTemperature        :: Double
-  , grTopP               :: Double
-  , grUser               :: Maybe Text
-  , grServiceTier        :: ServiceTier
-  , grError              :: Maybe Value
-  , grIncompleteDetails  :: Maybe Value
-  , grUsage              :: GroqResponseUsage
-  , grParallelToolCalls  :: Bool
-  , grStore              :: Bool
-  }
-  deriving (Show, Eq, Generic)
+    { grId :: Text
+    , grObject :: Text -- "response"
+    , grStatus :: Text -- completed | failed | ...
+    , grCreatedAt :: Int
+    , grOutput :: [GroqResponseOutputItem]
+    , grPreviousResponseId :: Maybe Text
+    , grModel :: Text
+    , grReasoning :: Maybe GroqResponseReasoning
+    , grMaxOutputTokens :: Maybe Int
+    , grInstructions :: Maybe Text
+    , grText :: Maybe GroqResponseTextConfig
+    , grTools :: [Value]
+    , grToolChoice :: Value
+    , grTruncation :: TruncationStrategy
+    , grMetadata :: Value
+    , grTemperature :: Double
+    , grTopP :: Double
+    , grUser :: Maybe Text
+    , grServiceTier :: ServiceTier
+    , grError :: Maybe Value
+    , grIncompleteDetails :: Maybe Value
+    , grUsage :: GroqResponseUsage
+    , grParallelToolCalls :: Bool
+    , grStore :: Bool
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''GroqResponse)
 
@@ -345,19 +353,19 @@ $(deriveJSON (jsonOptions 2) ''GroqResponse)
 
 -- | Response for audio transcription: { "text": "...", "x_groq": { "id": ... } }
 data AudioTranscriptionResponse = AudioTranscriptionResponse
-  { atrText  :: Text
-  , atrXGroq :: Maybe ChatXGroq
-  }
-  deriving (Show, Eq, Generic)
+    { atrText :: Text
+    , atrXGroq :: Maybe ChatXGroq
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''AudioTranscriptionResponse)
 
 -- | Response for audio translation: { "text": "...", "x_groq": { "id": ... } }
 data AudioTranslationResponse = AudioTranslationResponse
-  { atvText  :: Text
-  , atvXGroq :: Maybe ChatXGroq
-  }
-  deriving (Show, Eq, Generic)
+    { atvText :: Text
+    , atvXGroq :: Maybe ChatXGroq
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''AudioTranslationResponse)
 
@@ -368,24 +376,24 @@ $(deriveJSON (jsonOptions 3) ''AudioTranslationResponse)
 --------------------------------------------------------------------------------
 
 data Model = Model
-  { moId                 :: Text
-  , moObject             :: Text  -- "model"
-  , moCreated            :: Int
-  , moOwnedBy            :: Text
-  , moActive             :: Maybe Bool
-  , moContextWindow      :: Maybe Int
-  , moPublicApps         :: Maybe Value
-  , moMaxCompletionTokens :: Maybe Int
-  }
-  deriving (Show, Eq, Generic)
+    { moId :: Text
+    , moObject :: Text -- "model"
+    , moCreated :: Int
+    , moOwnedBy :: Text
+    , moActive :: Maybe Bool
+    , moContextWindow :: Maybe Int
+    , moPublicApps :: Maybe Value
+    , moMaxCompletionTokens :: Maybe Int
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''Model)
 
 data ModelsList = ModelsList
-  { mlObject :: Text      -- "list"
-  , mlData   :: [Model]
-  }
-  deriving (Show, Eq, Generic)
+    { mlObject :: Text -- "list"
+    , mlData :: [Model]
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''ModelsList)
 
@@ -394,71 +402,72 @@ $(deriveJSON (jsonOptions 2) ''ModelsList)
 --------------------------------------------------------------------------------
 
 data BatchStatus
-  = BatchStatusValidating
-  | BatchStatusFailed
-  | BatchStatusInProgress
-  | BatchStatusFinalizing
-  | BatchStatusCompleted
-  | BatchStatusExpired
-  | BatchStatusCancelling
-  | BatchStatusCancelled
-  deriving (Show, Eq, Ord, Generic)
+    = BatchStatusValidating
+    | BatchStatusFailed
+    | BatchStatusInProgress
+    | BatchStatusFinalizing
+    | BatchStatusCompleted
+    | BatchStatusExpired
+    | BatchStatusCancelling
+    | BatchStatusCancelled
+    deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 11) ''BatchStatus)
+
 -- "validating", "failed", ...
 
 data BatchRequestCounts = BatchRequestCounts
-  { brcTotal     :: Int
-  , brcCompleted :: Int
-  , brcFailed    :: Int
-  }
-  deriving (Show, Eq, Generic)
+    { brcTotal :: Int
+    , brcCompleted :: Int
+    , brcFailed :: Int
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''BatchRequestCounts)
 
 -- | Full batch object (used by create / retrieve / list / cancel)
 data BatchObject = BatchObject
-  { boId              :: Text
-  , boObject          :: Text   -- "batch"
-  , boEndpoint        :: Text
-  , boErrors          :: Maybe Value
-  , boInputFileId     :: Text
-  , boCompletionWindow :: Text
-  , boStatus          :: BatchStatus
-  , boOutputFileId    :: Maybe Text
-  , boErrorFileId     :: Maybe Text
-  , boFinalizingAt    :: Maybe Int
-  , boFailedAt        :: Maybe Int
-  , boExpiredAt       :: Maybe Int
-  , boCancelledAt     :: Maybe Int
-  , boRequestCounts   :: BatchRequestCounts
-  , boMetadata        :: Maybe Value
-  , boCreatedAt       :: Int
-  , boExpiresAt       :: Int
-  , boCancellingAt    :: Maybe Int
-  , boCompletedAt     :: Maybe Int
-  , boInProgressAt    :: Maybe Int
-  }
-  deriving (Show, Eq, Generic)
+    { boId :: Text
+    , boObject :: Text -- "batch"
+    , boEndpoint :: Text
+    , boErrors :: Maybe Value
+    , boInputFileId :: Text
+    , boCompletionWindow :: Text
+    , boStatus :: BatchStatus
+    , boOutputFileId :: Maybe Text
+    , boErrorFileId :: Maybe Text
+    , boFinalizingAt :: Maybe Int
+    , boFailedAt :: Maybe Int
+    , boExpiredAt :: Maybe Int
+    , boCancelledAt :: Maybe Int
+    , boRequestCounts :: BatchRequestCounts
+    , boMetadata :: Maybe Value
+    , boCreatedAt :: Int
+    , boExpiresAt :: Int
+    , boCancellingAt :: Maybe Int
+    , boCompletedAt :: Maybe Int
+    , boInProgressAt :: Maybe Int
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''BatchObject)
 
 data BatchesList = BatchesList
-  { blObject :: Text
-  , blData   :: [BatchObject]
-  }
-  deriving (Show, Eq, Generic)
+    { blObject :: Text
+    , blData :: [BatchObject]
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''BatchesList)
 
 -- | Request body for POST /openai/v1/batches
 data BatchCreateRequest = BatchCreateRequest
-  { bcrCompletionWindow :: Text
-  , bcrEndpoint         :: Text   -- "/v1/chat/completions"
-  , bcrInputFileId      :: Text
-  , bcrMetadata         :: Maybe Value
-  }
-  deriving (Show, Eq, Generic)
+    { bcrCompletionWindow :: Text
+    , bcrEndpoint :: Text -- "/v1/chat/completions"
+    , bcrInputFileId :: Text
+    , bcrMetadata :: Maybe Value
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''BatchCreateRequest)
 
@@ -467,39 +476,40 @@ $(deriveJSON (jsonOptions 3) ''BatchCreateRequest)
 --------------------------------------------------------------------------------
 
 data FilePurpose
-  = FilePurposeBatch
-  | FilePurposeBatchOutput
-  deriving (Show, Eq, Ord, Generic)
+    = FilePurposeBatch
+    | FilePurposeBatchOutput
+    deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 11) ''FilePurpose)
+
 -- "batch", "batch_output"
 
 data GroqFile = GroqFile
-  { gfId        :: Text
-  , gfObject    :: Text   -- "file"
-  , gfBytes     :: Int
-  , gfCreatedAt :: Int
-  , gfFilename  :: Text
-  , gfPurpose   :: FilePurpose
-  }
-  deriving (Show, Eq, Generic)
+    { gfId :: Text
+    , gfObject :: Text -- "file"
+    , gfBytes :: Int
+    , gfCreatedAt :: Int
+    , gfFilename :: Text
+    , gfPurpose :: FilePurpose
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''GroqFile)
 
 data FilesList = FilesList
-  { flObject :: Text
-  , flData   :: [GroqFile]
-  }
-  deriving (Show, Eq, Generic)
+    { flObject :: Text
+    , flData :: [GroqFile]
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 2) ''FilesList)
 
 data FileDeleteResponse = FileDeleteResponse
-  { fdrId      :: Text
-  , fdrObject  :: Text  -- "file"
-  , fdrDeleted :: Bool
-  }
-  deriving (Show, Eq, Generic)
+    { fdrId :: Text
+    , fdrObject :: Text -- "file"
+    , fdrDeleted :: Bool
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''FileDeleteResponse)
 
@@ -508,42 +518,42 @@ $(deriveJSON (jsonOptions 3) ''FileDeleteResponse)
 --------------------------------------------------------------------------------
 
 data FineTuningItem = FineTuningItem
-  { ftiId            :: Text
-  , ftiName          :: Text
-  , ftiBaseModel     :: Text
-  , ftiType          :: Text
-  , ftiInputFileId   :: Text
-  , ftiCreatedAt     :: Int
-  , ftiFineTunedModel :: Text
-  }
-  deriving (Show, Eq, Generic)
+    { ftiId :: Text
+    , ftiName :: Text
+    , ftiBaseModel :: Text
+    , ftiType :: Text
+    , ftiInputFileId :: Text
+    , ftiCreatedAt :: Int
+    , ftiFineTunedModel :: Text
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''FineTuningItem)
 
 data FineTuningsList = FineTuningsList
-  { ftlObject :: Text
-  , ftlData   :: [FineTuningItem]
-  }
-  deriving (Show, Eq, Generic)
+    { ftlObject :: Text
+    , ftlData :: [FineTuningItem]
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''FineTuningsList)
 
 -- Wrapper used by create / get endpoints:
 -- { "id": "...", "object": "...", "data": { FineTuningItem } }
 data FineTuningWrapper = FineTuningWrapper
-  { ftwId     :: Text
-  , ftwObject :: Text
-  , ftwData   :: FineTuningItem
-  }
-  deriving (Show, Eq, Generic)
+    { ftwId :: Text
+    , ftwObject :: Text
+    , ftwData :: FineTuningItem
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''FineTuningWrapper)
 
 data FineTuningDeleteResponse = FineTuningDeleteResponse
-  { ftdId      :: Text
-  , ftdObject  :: Text   -- "fine_tuning"
-  , ftdDeleted :: Bool
-  }
-  deriving (Show, Eq, Generic)
+    { ftdId :: Text
+    , ftdObject :: Text -- "fine_tuning"
+    , ftdDeleted :: Bool
+    }
+    deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''FineTuningDeleteResponse)

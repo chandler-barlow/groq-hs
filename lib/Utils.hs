@@ -1,8 +1,7 @@
 module Utils where
 
-import Data.Aeson.TH
-import Data.Char (toLower)
 import Data.Aeson
+import Data.Char (toLower)
 
 --------------------------------------------------------------------------------
 -- Helpers for Aeson deriving
@@ -10,13 +9,13 @@ import Data.Aeson
 
 jsonOptions :: Int -> Options
 jsonOptions prefixLen =
-  defaultOptions
-    { fieldLabelModifier = camelTo2 '_' . drop prefixLen
-    , omitNothingFields = True
-    }
+    defaultOptions
+        { fieldLabelModifier = camelTo2 '_' . drop prefixLen
+        , omitNothingFields = True
+        }
 
 sumOptions :: Int -> Options
 sumOptions prefixLen =
-  defaultOptions
-    { constructorTagModifier = map toLower . drop prefixLen
-    }
+    defaultOptions
+        { constructorTagModifier = map toLower . drop prefixLen
+        }

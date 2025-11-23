@@ -12,7 +12,10 @@
       perSystem = { self', pkgs, ... }: {
         haskellProjects.default = {
           devShell = {
-            # tools = hp: { fourmolu = hp.fourmolu; ghcid = null; };
+            tools = hp: { 
+              fourmolu = hp.fourmolu; 
+              ghcid = null; 
+            };
             # Check that haskell-language-server works
             hlsCheck.enable = true; # Requires sandbox to be disabled
           };

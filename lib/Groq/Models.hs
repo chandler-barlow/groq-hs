@@ -4,6 +4,10 @@ module Groq.Models
   , fromId
   ) where
 
+import Data.Aeson qualified as Aeson
+import Data.Aeson.Types qualified as Aeson
+import Data.Text qualified as Text
+
 {-
   TODO:
   Actually generate this from the json output of available models. 
@@ -32,6 +36,18 @@ data ModelId
   | Model_qwen_qwen3_32b
   | Model_whisper_large_v3
   deriving (Eq, Ord, Enum, Bounded)
+
+instance Aeson.ToJSON ModelId where
+  toJSON = Aeson.String . Text.pack . show
+
+instance Aeson.FromJSON ModelId where
+    parseJSON (Aeson.String m) = 
+      case fromId (Text.unpack m) of
+        Just model -> pure model
+        Nothing -> Aeson.parseFail "Model failed to parse"
+    parseJSON invalid =
+        Aeson.prependFailure "Model failed"
+            (Aeson.typeMismatch "String" invalid)
 
 instance Show ModelId where
   show Model_meta_llama_llama_4_maverick_17b_128e_instruct =
