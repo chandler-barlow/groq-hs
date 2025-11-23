@@ -9,7 +9,7 @@ import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding (encodeUtf8)
-import Groq.Types (
+import Groq.Types.ChatCompletion (
     ChatCompletion (..),
     ChatCreateRequest (..),
     ChatMessage (..),

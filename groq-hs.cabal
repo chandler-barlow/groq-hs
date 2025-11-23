@@ -22,8 +22,8 @@ library
     exposed-modules:  
         Utils,
         Groq,
-        Groq.Types,
-        Groq.Models
+        Groq.Types.Models,
+        Groq.Types.ChatCompletion
 
     build-depends:    
         base,

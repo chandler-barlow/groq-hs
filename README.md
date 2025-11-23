@@ -1,6 +1,11 @@
 # groq-hs
 groq cloud library for haskell
 
+
+# Goals
+The current goal of this project is to provide a nice chat/conversation interface for groq cloud.
+Currently audio, responses, documents etc are out of scope. I will probably get to these at some point, but not today!
+
 # TODO
 - [ ] @Priority fully flesh out the req types
 - [ ] create a default request
