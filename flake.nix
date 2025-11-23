@@ -15,6 +15,7 @@
             tools = hp: { 
               fourmolu = hp.fourmolu; 
               ghcid = null; 
+              haskell-language-server = hp.haskell-language-server;
             };
             # Check that haskell-language-server works
             hlsCheck.enable = true; # Requires sandbox to be disabled
