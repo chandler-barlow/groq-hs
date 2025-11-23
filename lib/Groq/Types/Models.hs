@@ -1,5 +1,5 @@
 {- HLINT ignore "Use camelCase" -}
-module Groq.Models
+module Groq.Types.Models
   ( ModelId(..)
   , fromId
   ) where
@@ -7,12 +7,7 @@ module Groq.Models
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types qualified as Aeson
 import Data.Text qualified as Text
-
-{-
-  TODO:
-  Actually generate this from the json output of available models. 
-  I had groq just generate this.
--}
+import Data.Default
 
 data ModelId
   = Model_meta_llama_llama_4_maverick_17b_128e_instruct
@@ -36,6 +31,9 @@ data ModelId
   | Model_qwen_qwen3_32b
   | Model_whisper_large_v3
   deriving (Eq, Ord, Enum, Bounded)
+
+instance Default ModelId where
+  def = Model_groq_compound_mini
 
 instance Aeson.ToJSON ModelId where
   toJSON = Aeson.String . Text.pack . show

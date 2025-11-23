@@ -1,8 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
-module Groq.ChatCompletion (
+module Groq.Types.ChatCompletion (
     -- * Chat completions
     ChatRole (..),
     ServiceTier (..),
@@ -17,7 +18,7 @@ module Groq.ChatCompletion (
     ChatXGroq (..),
     ChatCompletion (..),
     mkUserChatMessage,
-    mkEmptyChatRequest,
+    mkSysChatMessage,
 ) where
 
 import Data.Aeson
@@ -25,12 +26,9 @@ import Data.Aeson.TH
 import Data.Text (Text)
 import GHC.Generics (Generic)
 
-import Groq.Models
+import Groq.Types.Models
 import Utils
-
---------------------------------------------------------------------------------
--- Chat completions
---------------------------------------------------------------------------------
+import Data.Default
 
 data ChatRole
     = ChatRoleUser
@@ -42,8 +40,6 @@ data ChatRole
 
 $(deriveJSON (sumOptions 8) ''ChatRole)
 
--- "user", "assistant", "system", "tool", "function"
-
 data ServiceTier
     = ServiceTierAuto
     | ServiceTierOnDemand
@@ -53,8 +49,6 @@ data ServiceTier
     deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 11) ''ServiceTier)
-
--- "auto", "on_demand", "flex", "performance", "default"
 
 data ReasoningEffort
     = ReasoningEffortNone
@@ -66,8 +60,6 @@ data ReasoningEffort
 
 $(deriveJSON (sumOptions 15) ''ReasoningEffort)
 
--- "none", "default", "low", "medium", "high"
-
 data ReasoningFormat
     = ReasoningFormatHidden
     | ReasoningFormatRaw
@@ -75,8 +67,6 @@ data ReasoningFormat
     deriving (Show, Eq, Ord, Generic)
 
 $(deriveJSON (sumOptions 15) ''ReasoningFormat)
-
--- "hidden", "raw", "parsed"
 
 data CitationOptions
     = CitationOptionsEnabled
@@ -86,21 +76,30 @@ data CitationOptions
 $(deriveJSON (sumOptions 15) ''CitationOptions)
 
 data ChatMessage = ChatMessage
-    { cmRole :: ChatRole
-    , cmContent :: Text
-    , cmName :: Maybe Text
+    { role :: ChatRole
+    , content :: Text
+    , name :: Maybe Text
     }
     deriving (Show, Eq, Generic)
 
-$(deriveJSON (jsonOptions 2) ''ChatMessage)
+$(deriveJSON (jsonOptions 0) ''ChatMessage)
 
 -- | Creates a user chat message with some defaults
 mkUserChatMessage :: Text -> ChatMessage
 mkUserChatMessage msg =
     ChatMessage
-        { cmRole = ChatRoleUser
-        , cmContent = msg
-        , cmName = Nothing
+        { role = ChatRoleUser
+        , content = msg
+        , name = Nothing
+        }
+
+-- | Allows for system prompts
+mkSysChatMessage :: Text -> ChatMessage
+mkSysChatMessage msg =
+    ChatMessage
+        { role = ChatRoleSystem
+        , content = msg
+        , name = Nothing
         }
 
 {- |
@@ -112,136 +111,136 @@ mkUserChatMessage msg =
     Only messages really work at the moment
 -}
 data ChatCreateRequest = ChatCreateRequest
-    { ccrMessages :: [ChatMessage]
-    , ccrModel :: ModelId
-    , ccrCitationOptions :: Maybe CitationOptions
-    , ccrCompoundCustom :: Maybe Value
+    { messages :: [ChatMessage]
+    , model :: ModelId
+    , citationOptions :: Maybe CitationOptions
+    , compoundCustom :: Maybe Value
     -- ^ TODO
-    , ccrDisableToolValidation :: Maybe Bool
-    , ccrDocuments :: Maybe [Value]
+    , disableToolValidation :: Maybe Bool
+    , documents :: Maybe [Value]
     -- ^ TODO
-    , ccrExcludeDomains :: Maybe [Text]
-    , ccrFrequencyPenalty :: Maybe Double
-    , ccrFunctionCall :: Maybe Value -- deprecated in favor of tool_choice
+    , excludeDomains :: Maybe [Text]
+    , frequencyPenalty :: Maybe Double
+    , functionCall :: Maybe Value -- deprecated in favor of tool_choice
 
     -- ^ TODO: low priority
-    , ccrFunctions :: Maybe [Value] -- deprecated in favor of tools
+    , functions :: Maybe [Value] -- deprecated in favor of tools
 
     -- ^ TODO: low priority
-    , ccrIncludeDomains :: Maybe [Text]
-    , ccrIncludeReasoning :: Maybe Bool
-    , ccrLogitBias :: Maybe Value
+    , includeDomains :: Maybe [Text]
+    , includeReasoning :: Maybe Bool
+    , logitBias :: Maybe Value
     -- ^ TODO
-    , ccrLogprobs :: Maybe Bool
-    , ccrMaxCompletionTokens :: Maybe Int
-    , ccrMaxTokens :: Maybe Int -- deprecated
-    , ccrMetadata :: Maybe Value
+    , logprobs :: Maybe Bool
+    , maxCompletionTokens :: Maybe Int
+    , maxTokens :: Maybe Int -- deprecated
+    , metadata :: Maybe Value
     -- ^ TODO
-    , ccrN :: Maybe Int
-    , ccrParallelToolCalls :: Maybe Bool
-    , ccrPresencePenalty :: Maybe Double
-    , ccrReasoningEffort :: Maybe ReasoningEffort
-    , ccrReasoningFormat :: Maybe ReasoningFormat
-    , ccrResponseFormat :: Maybe Value
+    , n :: Maybe Int
+    , parallelToolCalls :: Maybe Bool
+    , presencePenalty :: Maybe Double
+    , reasoningEffort :: Maybe ReasoningEffort
+    , reasoningFormat :: Maybe ReasoningFormat
+    , responseFormat :: Maybe Value
     -- ^ TODO
-    , ccrSearchSettings :: Maybe Value
+    , searchSettings :: Maybe Value
     -- ^ TODO
-    , ccrSeed :: Maybe Int
-    , ccrServiceTier :: Maybe ServiceTier
-    , ccrStop :: Maybe Value -- string or array
+    , seed :: Maybe Int
+    , serviceTier :: Maybe ServiceTier
+    , stop :: Maybe Value -- string or array
 
     -- ^ TODO
-    , ccrStore :: Maybe Bool
-    , ccrStream :: Maybe Bool
-    , ccrStreamOptions :: Maybe Value
+    , store :: Maybe Bool
+    , stream :: Maybe Bool
+    , streamOptions :: Maybe Value
     -- ^ TODO
-    , ccrTemperature :: Maybe Double
-    , ccrToolChoice :: Maybe Value
+    , temperature :: Maybe Double
+    , toolChoice :: Maybe Value
     -- ^ TODO: These are high value
-    , ccrTools :: Maybe [Value]
+    , tools :: Maybe [Value]
     -- ^ TODO: These are high value
-    , ccrTopLogprobs :: Maybe Int
-    , ccrTopP :: Maybe Double
-    , ccrUser :: Maybe Text
+    , topLogprobs :: Maybe Int
+    , topP :: Maybe Double
+    , user :: Maybe Text
     }
     deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 3) ''ChatCreateRequest)
 
 -- | Uses groq compound mini by default and includes no message
-mkEmptyChatRequest :: ChatCreateRequest
-mkEmptyChatRequest =
-    ChatCreateRequest
-        { ccrMessages = []
-        , ccrModel = Model_groq_compound_mini
-        , ccrCitationOptions = Nothing
-        , ccrCompoundCustom = Nothing
-        , ccrDisableToolValidation = Nothing
-        , ccrDocuments = Nothing
-        , ccrExcludeDomains = Nothing
-        , ccrFrequencyPenalty = Nothing
-        , ccrFunctionCall = Nothing
-        , ccrFunctions = Nothing
-        , ccrIncludeDomains = Nothing
-        , ccrIncludeReasoning = Nothing
-        , ccrLogitBias = Nothing
-        , ccrLogprobs = Nothing
-        , ccrMaxCompletionTokens = Nothing
-        , ccrMaxTokens = Nothing
-        , ccrMetadata = Nothing
-        , ccrN = Nothing
-        , ccrParallelToolCalls = Nothing
-        , ccrPresencePenalty = Nothing
-        , ccrReasoningEffort = Nothing
-        , ccrReasoningFormat = Nothing
-        , ccrResponseFormat = Nothing
-        , ccrSearchSettings = Nothing
-        , ccrSeed = Nothing
-        , ccrServiceTier = Nothing
-        , ccrStop = Nothing
-        , ccrStore = Nothing
-        , ccrStream = Nothing
-        , ccrStreamOptions = Nothing
-        , ccrTemperature = Nothing
-        , ccrToolChoice = Nothing
-        , ccrTools = Nothing
-        , ccrTopLogprobs = Nothing
-        , ccrTopP = Nothing
-        , ccrUser = Nothing
-        }
+instance Default ChatCreateRequest where
+    def =
+        ChatCreateRequest
+            { messages = []
+            , model = def
+            , citationOptions = Nothing
+            , compoundCustom = Nothing
+            , disableToolValidation = Nothing
+            , documents = Nothing
+            , excludeDomains = Nothing
+            , frequencyPenalty = Nothing
+            , functionCall = Nothing
+            , functions = Nothing
+            , includeDomains = Nothing
+            , includeReasoning = Nothing
+            , logitBias = Nothing
+            , logprobs = Nothing
+            , maxCompletionTokens = Nothing
+            , maxTokens = Nothing
+            , metadata = Nothing
+            , n = Nothing
+            , parallelToolCalls = Nothing
+            , presencePenalty = Nothing
+            , reasoningEffort = Nothing
+            , reasoningFormat = Nothing
+            , responseFormat = Nothing
+            , searchSettings = Nothing
+            , seed = Nothing
+            , serviceTier = Nothing
+            , stop = Nothing
+            , store = Nothing
+            , stream = Nothing
+            , streamOptions = Nothing
+            , temperature = Nothing
+            , toolChoice = Nothing
+            , tools = Nothing
+            , topLogprobs = Nothing
+            , topP = Nothing
+            , user = Nothing
+            }
 
 data ChatChoice = ChatChoice
-    { chcIndex :: Int
-    , chcMessage :: ChatMessage
-    , chcLogprobs :: Maybe Value
-    , chcFinishReason :: Maybe Text
+    { index :: Int
+    , message :: ChatMessage
+    , logprobs :: Maybe Value
+    , finishReason :: Maybe Text
     }
     deriving (Show, Eq, Generic)
 
-$(deriveJSON (jsonOptions 3) ''ChatChoice)
+$(deriveJSON (jsonOptions 0) ''ChatChoice)
 
 data ChatUsageBreakdown = ChatUsageBreakdown
-    { cubPromptTokens :: Maybe Int
-    , cubCompletionTokens :: Maybe Int
-    , cubTotalTokens :: Maybe Int
+    { promptTokens :: Maybe Int
+    , completionTokens :: Maybe Int
+    , totalTokens :: Maybe Int
     }
     deriving (Show, Eq, Generic)
 
-$(deriveJSON (jsonOptions 3) ''ChatUsageBreakdown)
+$(deriveJSON (jsonOptions 0) ''ChatUsageBreakdown)
 
 data ChatUsage = ChatUsage
-    { cuQueueTime :: Maybe Double
-    , cuPromptTokens :: Maybe Int
-    , cuPromptTime :: Maybe Double
-    , cuCompletionTokens :: Maybe Int
-    , cuCompletionTime :: Maybe Double
-    , cuTotalTokens :: Maybe Int
-    , cuTotalTime :: Maybe Double
-    , cuUsageBreakdown :: Maybe ChatUsageBreakdown
+    { queueTime :: Maybe Double
+    , promptTokens :: Maybe Int
+    , promptTime :: Maybe Double
+    , completionTokens :: Maybe Int
+    , completionTime :: Maybe Double
+    , totalTokens :: Maybe Int
+    , totalTime :: Maybe Double
+    , usageBreakdown :: Maybe ChatUsageBreakdown
     }
     deriving (Show, Eq, Generic)
 
-$(deriveJSON (jsonOptions 2) ''ChatUsage)
+$(deriveJSON (jsonOptions 0) ''ChatUsage)
 
 newtype ChatXGroq = ChatXGroq
     { cxId :: Maybe Text
@@ -252,17 +251,17 @@ $(deriveJSON (jsonOptions 2) ''ChatXGroq)
 
 -- | Response for POST /openai/v1/chat/completions
 data ChatCompletion = ChatCompletion
-    { ccId :: Text
-    , ccObject :: Text
-    , ccCreated :: Int
-    , ccModel :: Text
-    , ccChoices :: [ChatChoice]
-    , ccUsage :: Maybe ChatUsage
-    , ccSystemFingerprint :: Maybe Text
-    , ccServiceTier :: Maybe ServiceTier
-    , ccXGroq :: Maybe ChatXGroq
-    , ccMcpListTools :: Maybe [Value]
+    { id :: Text
+    , object :: Text
+    , created :: Int
+    , model :: Text
+    , choices :: [ChatChoice]
+    , usage :: Maybe ChatUsage
+    , systemFingerprint :: Maybe Text
+    , serviceTier :: Maybe ServiceTier
+    , xGroq :: Maybe ChatXGroq
+    , mcpListTools :: Maybe [Value]
     }
     deriving (Show, Eq, Generic)
 
-$(deriveJSON (jsonOptions 2) ''ChatCompletion)
+$(deriveJSON (jsonOptions 0) ''ChatCompletion)
