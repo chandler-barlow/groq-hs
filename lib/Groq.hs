@@ -1,7 +1,12 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE DerivingVia #-}
 
-module Groq where
+module Groq (
+    prompt, 
+    execGroq, 
+    GroqCfg(..),
+    APIKey(..)
+ ) where
 
 import Control.Monad.Except
 import Control.Monad.IO.Class (MonadIO, liftIO)
@@ -107,63 +112,9 @@ instance Default GroqCfg where
             , apiKey = FromEnv "GROQ_API_KEY"
             }
 
--- TODO handle errors
-loadApiKey :: (MonadIO m) => APIKey -> m Text
-loadApiKey (FromEnv var) = fmap T.pack . liftIO $ getEnv var
-
-{- | Attempts to load groq api key from GROQ_API_KEY
-TODO think about adding fallbacks or settings
--}
-initGroq :: (MonadIO m) => GroqCfg -> m GroqCtx
-initGroq cfg = do
-    apiKey <- loadApiKey $ cfg ^. #apiKey
-    let chatCtx =
-            def
-                & #model .~ (cfg ^. #model)
-                & #temperature ?~ (cfg ^. #temperature)
-                & #reasoningEffort ?~ (cfg ^. #reasoningEffort)
-                & #maxCompletionTokens ?~ (cfg ^. #maxCompletionTokens)
-                & #stream ?~ (cfg ^. #stream)
-                & #topP ?~ (cfg ^. #topP)
-
-        groqUrl = groqBase
-    pure $
-        GroqCtx
-            { chatCtx
-            , apiKey
-            , groqUrl
-            }
-
-newtype GroqError = GroqError {errMessage :: String}
+newtype GroqError = GroqError {_errMessage :: String}
 
 type GroqAPIKey = Text
-
--- | Low level request for chat/prompt
-chatCompletionRequest ::
-    (MonadHttp m) =>
-    GroqAPIKey ->
-    Url Https ->
-    ChatCreateRequest ->
-    m (Either GroqError ChatCompletion)
-chatCompletionRequest apiKey groqUrl chatRequest = do
-    let url = groqUrl /: "chat" /: "completions"
-        opts =
-            mconcat
-                [ header "Authorization" $ "Bearer " <> encodeUtf8 apiKey
-                , header "Content-Type" "application/json"
-                ]
-        reqBody = Aeson.toJSON chatRequest
-    r <-
-        req
-            POST
-            url
-            (ReqBodyJson reqBody)
-            lbsResponse
-            opts
-
-    case Aeson.decode @ChatCompletion $ responseBody r of
-        Nothing -> pure . Left $ GroqError "Error: Failed to parse chat completion response."
-        Just chat -> pure . Right $ chat
 
 {- |
     Transformer for managing errors and chat state.
@@ -184,8 +135,39 @@ newtype GroqT m a = GroqT
     deriving (MonadState GroqCtx) via GroqTRep m
     deriving MonadHttp via GroqTRep m
 
-execGroq :: (MonadIO m) => GroqCfg -> GroqT m a -> m a
-execGroq = undefined
+-- TODO handle errors
+loadApiKey :: (MonadIO m) => APIKey -> m Text
+loadApiKey (FromEnv var) = fmap T.pack . liftIO $ getEnv var
+
+{- | Attempts to load groq api key from GROQ_API_KEY
+TODO think about adding fallbacks or settings
+-}
+initGroq :: (MonadIO m) => GroqCfg -> m GroqCtx
+initGroq cfg = do
+    apiKey <- loadApiKey $ cfg ^. #apiKey -- The only reason it's monadic
+    let groqUrl = groqBase
+        chatCtx =
+            def
+                & #model .~ (cfg ^. #model)
+                & #temperature ?~ (cfg ^. #temperature)
+                & #reasoningEffort ?~ (cfg ^. #reasoningEffort)
+                & #maxCompletionTokens ?~ (cfg ^. #maxCompletionTokens)
+                & #stream ?~ (cfg ^. #stream)
+                & #topP ?~ (cfg ^. #topP)
+    pure $
+        GroqCtx
+            { chatCtx
+            , apiKey
+            , groqUrl
+            }
+
+execGroq :: (MonadIO m) => GroqCfg -> GroqT m a -> m (Either GroqError a)
+execGroq cfg fn = do
+    ctx <- initGroq cfg
+    fmap fst 
+        . flip runStateT ctx 
+        . runExceptT 
+        $ runGroqT fn
 
 upsertChatMessage :: ChatMessage -> GroqCtx -> GroqCtx
 upsertChatMessage msg ctx = ctx & #chatCtx . #messages %~ (msg :)
