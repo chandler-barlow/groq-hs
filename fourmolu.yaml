@@ -1,0 +1,22 @@
+# General formatting options
+indentation: 2 # Number of spaces per indentation step (default is 4)
+column-limit: 100 # Maximum line length (default is 80)
+respectful: true # Whether to respect user-specified newlines in certain contexts (e.g., import groupings)
+
+# Styling of specific language constructs
+comma-style: leading # Where to place commas in lists, tuples, etc. (options: leading, trailing)
+import-export-style: diff-friendly # Styling of import/export lists (options: leading, trailing, diff-friendly)
+haddock-style: multi-line # How to print Haddock comments (options: multi-line, single-line)
+haddock-style-module: multi-line # How to print module docstrings (options: null, single-line, multi-line, multi-line-compact)
+if-style: multi-line # Styling of if-statements (options: multi-line, single-line)
+in-style: left-align # How to align the 'in' keyword with respect to the 'let' keyword (options: left-align, right-align, no-space)
+record-brace-space: false # Whether to have a space after the opening brace in record syntax (e.g., rec {x = 1} vs rec{x = 1})
+
+# Sorting options
+sort-constraints: true # Whether to sort constraints in type signatures
+sort-derived-classes: true # Whether to sort derived classes in deriving clauses
+sort-deriving-clauses: true # Whether to sort deriving clauses
+
+# Other options
+unicode: true # Output Unicode syntax
+newlines-between-decls: 1 # Number of blank lines between top-level declarations

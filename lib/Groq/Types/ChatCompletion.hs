@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
@@ -37,6 +35,9 @@ data ChatRole
     | ChatRoleTool
     | ChatRoleFunction
     deriving (Show, Eq, Ord, Generic)
+
+instance Default ChatRole where
+    def = ChatRoleUser
 
 $(deriveJSON (sumOptions 8) ''ChatRole)
 
@@ -81,6 +82,13 @@ data ChatMessage = ChatMessage
     , name :: Maybe Text
     }
     deriving (Show, Eq, Generic)
+
+instance Default ChatMessage where
+    def = ChatMessage
+        { role = def
+        , content = ""
+        , name = Nothing
+        }
 
 $(deriveJSON (jsonOptions 0) ''ChatMessage)
 

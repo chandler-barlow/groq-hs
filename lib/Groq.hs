@@ -1,11 +1,11 @@
-{-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE DerivingVia #-}
 
 module Groq where
 
 import Control.Monad.Except
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Generics.Labels ()
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding (encodeUtf8)
@@ -13,12 +13,25 @@ import Groq.Types.ChatCompletion (
     ChatCompletion (..),
     ChatCreateRequest (..),
     ChatMessage (..),
-    mkEmptyChatRequest,
+    ReasoningEffort (..),
  )
+import Lens.Micro ((&), (.~), (^.), (?~), (%~))
 import Network.HTTP.Req
 
 import Data.Aeson qualified as Aeson
+import GHC.Generics (Generic)
+import Groq.Types.Models
 import System.Environment (getEnv)
+import Data.Default (Default (..))
+import Control.Monad.State (
+    StateT (..), 
+    MonadState, 
+    modify'
+ )
+import Control.Monad.RWS.Lazy (MonadState(..))
+import Control.Monad (forM_)
+import Lens.Micro.Extras (view)
+import Data.Maybe (listToMaybe)
 
 {- |
     I am thinking that this module should actually be split into
@@ -61,6 +74,7 @@ data GroqCtx = GroqCtx
     -}
     , groqUrl :: Url Https
     }
+    deriving (Generic)
 
 -- | Maybe we will want other options later?
 newtype APIKey = FromEnv String
@@ -79,6 +93,7 @@ data GroqCfg = GroqCfg
     , topP :: Double
     , apiKey :: APIKey
     }
+    deriving (Generic)
 
 instance Default GroqCfg where
     def =
@@ -94,23 +109,23 @@ instance Default GroqCfg where
 
 -- TODO handle errors
 loadApiKey :: (MonadIO m) => APIKey -> m Text
-loadApiKey (FromEnv var) = fmap T.pack . liftIO $ getEnv "GROQ_API_KEY"
+loadApiKey (FromEnv var) = fmap T.pack . liftIO $ getEnv var
 
 {- | Attempts to load groq api key from GROQ_API_KEY
 TODO think about adding fallbacks or settings
 -}
 initGroq :: (MonadIO m) => GroqCfg -> m GroqCtx
 initGroq cfg = do
-    apiKey <- loadApiKey cfg.apiKey
+    apiKey <- loadApiKey $ cfg ^. #apiKey
     let chatCtx =
             def
-                { model = cfg.model
-                , temperature = cfg.temperature
-                , reasoningEffort = cfg.reasoningEffort
-                , maxCompletionTokens = cfg.maxCompletionTokens
-                , stream = cfg.stream
-                , topP = cfg.topP
-                }
+                & #model .~ (cfg ^. #model)
+                & #temperature ?~ (cfg ^. #temperature)
+                & #reasoningEffort ?~ (cfg ^. #reasoningEffort)
+                & #maxCompletionTokens ?~ (cfg ^. #maxCompletionTokens)
+                & #stream ?~ (cfg ^. #stream)
+                & #topP ?~ (cfg ^. #topP)
+
         groqUrl = groqBase
     pure $
         GroqCtx
@@ -150,21 +165,6 @@ chatCompletionRequest apiKey groqUrl chatRequest = do
         Nothing -> pure . Left $ GroqError "Error: Failed to parse chat completion response."
         Just chat -> pure . Right $ chat
 
-groqChat ::
-    (MonadHttp m) =>
-    GroqCtx ->
-    ChatMessage ->
-    m (Either GroqError (GroqCtx, ChatCompletion))
-groqChat ctx msg = do
-    let chatHistory' = msg : ctx.chatHistory
-        chatReq =
-            mkEmptyChatRequest
-                { ccrMessages = chatHistory'
-                }
-    runExceptT $ do
-        chat <- ExceptT $ chatCompletionRequest ctx.apiKey ctx.groqUrl chatReq
-        pure (ctx{chatHistory = chatHistory'}, chat)
-
 {- |
     Transformer for managing errors and chat state.
     Using this it's technically possible to tweak any of the
@@ -172,22 +172,67 @@ groqChat ctx msg = do
 
     Maybe I can expose that later?
 -}
+
+type GroqTRep m = ExceptT GroqError (StateT GroqCtx m) 
+
 newtype GroqT m a = GroqT
-    { runGroqT :: ExceptT GroqError (StateT m GroqCtx) a
+    { runGroqT :: ExceptT GroqError (StateT GroqCtx m) a
     }
-
--- I think I could have derived these somehow
-instance (Monad m) => MonadState GroqCtx (GroqT m) where
-    get = GroqT . ExceptT . fmap Right . StateT $ \s -> pure (s, s)
-    put s = GroqT . ExceptT . fmap Right . StateT . const $ pure ((), s)
-
-instance (Monad m) => MonadError GroqError (GroqT m) where
-    throwError = GroqT . throwError
-    catchError (GroqT m) = GroqT . catchError m
+    deriving newtype (Functor, Applicative, Monad)
+    deriving MonadIO via GroqTRep m
+    deriving (MonadError GroqError) via GroqTRep m
+    deriving (MonadState GroqCtx) via GroqTRep m
+    deriving MonadHttp via GroqTRep m
 
 execGroq :: (MonadIO m) => GroqCfg -> GroqT m a -> m a
 execGroq = undefined
 
--- | Send a prompt to groq and then get a response
-prompt :: (MonadIO m) => Text -> GroqT m Text
-prompt = undefined
+upsertChatMessage :: ChatMessage -> GroqCtx -> GroqCtx
+upsertChatMessage msg ctx = ctx & #chatCtx . #messages %~ (msg :)
+
+-- | Add a chat completeion response into the request state
+registerResponse :: Monad m => ChatCompletion -> GroqT m ()
+registerResponse msg = do
+    let xs = msg ^. #choices
+    forM_ xs $
+        modify' . upsertChatMessage . view #message
+
+-- | Add a chat message into the request state
+registerRequest :: Monad m => ChatMessage -> GroqT m ()
+registerRequest = modify' . upsertChatMessage
+
+-- | Makes a request to chat completions with whatever is in the current request state
+makeRequest :: MonadHttp m => GroqT m ChatCompletion
+makeRequest = do
+    ctx <- get
+    let url = view #groqUrl ctx /: "chat" /: "completions"
+        opts =
+            mconcat
+                [ header "Authorization" $ "Bearer " <> encodeUtf8 (ctx ^. #apiKey)
+                , header "Content-Type" "application/json"
+                ]
+        reqBody = Aeson.toJSON $ ctx ^. #chatCtx
+    r <-
+        req
+            POST
+            url
+            (ReqBodyJson reqBody)
+            lbsResponse
+            opts
+
+    case Aeson.decode @ChatCompletion $ responseBody r of
+        Nothing -> throwError $ GroqError "Error: Failed to parse chat completion response."
+        Just chat -> pure chat
+
+-- | Send a prompt to groq as a user
+prompt :: (MonadIO m, MonadHttp m) => Text -> GroqT m Text
+prompt msg = do
+    let request = def & #content .~ msg
+    registerRequest request
+    response <- makeRequest
+    registerResponse response
+    let rs = response ^. #choices
+        rs' = view (#message .  #content) <$> listToMaybe rs
+    case rs' of
+        Nothing -> throwError $ GroqError "Error: Absurd, no request was ever made"
+        Just x -> pure x

@@ -13,35 +13,56 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
-library
-    import:           warnings
-    hs-source-dirs:   lib
-    default-language: GHC2024
-    -- other-extensions:
+common opts
 
+library
+    import: warnings
+    default-language: GHC2024
+    default-extensions:
+        AllowAmbiguousTypes,
+        DataKinds,
+        DeriveGeneric,
+        DuplicateRecordFields,
+        FlexibleContexts,
+        NoMonomorphismRestriction,
+        TypeApplications,
+        OverloadedRecordDot,
+        OverloadedStrings,
+        OverloadedLabels
+    hs-source-dirs:   lib
     exposed-modules:  
         Utils,
         Groq,
         Groq.Types.Models,
         Groq.Types.ChatCompletion
-
     build-depends:    
         base,
         aeson,
         mtl,
         data-default,
         req,
-        text
+        text,
+        microlens,
+        generic-lens
 
 test-suite groq-hs-test
-    import:           warnings
-    default-language: GHC2024
+    import: warnings
     type:             exitcode-stdio-1.0
+    default-language: GHC2024
+    default-extensions:
+        AllowAmbiguousTypes,
+        DataKinds,
+        DeriveGeneric,
+        DuplicateRecordFields,
+        FlexibleContexts,
+        NoMonomorphismRestriction,
+        TypeApplications,
+        OverloadedRecordDot,
+        OverloadedStrings,
+        OverloadedLabels
     hs-source-dirs:   test
     main-is:          Main.hs
     -- other-modules:
-    -- other-extensions:
-
     build-depends:
         base ^>=4.20.2.0,
         groq-hs
