@@ -27,6 +27,7 @@ import GHC.Generics (Generic)
 import Groq.Types.Models
 import Utils
 import Data.Default
+import Data.Sequence (Seq)
 
 data ChatRole
     = ChatRoleUser
@@ -39,7 +40,7 @@ data ChatRole
 instance Default ChatRole where
     def = ChatRoleUser
 
-$(deriveJSON (sumOptions 8) ''ChatRole)
+$(deriveJsonEnum 8 ''ChatRole)
 
 data ServiceTier
     = ServiceTierAuto
@@ -49,7 +50,7 @@ data ServiceTier
     | ServiceTierDefault
     deriving (Show, Eq, Ord, Generic)
 
-$(deriveJSON (sumOptions 11) ''ServiceTier)
+$(deriveJsonEnum 11 ''ServiceTier)
 
 data ReasoningEffort
     = ReasoningEffortNone
@@ -59,7 +60,7 @@ data ReasoningEffort
     | ReasoningEffortHigh
     deriving (Show, Eq, Ord, Generic)
 
-$(deriveJSON (sumOptions 15) ''ReasoningEffort)
+$(deriveJsonEnum 15 ''ReasoningEffort)
 
 data ReasoningFormat
     = ReasoningFormatHidden
@@ -67,14 +68,14 @@ data ReasoningFormat
     | ReasoningFormatParsed
     deriving (Show, Eq, Ord, Generic)
 
-$(deriveJSON (sumOptions 15) ''ReasoningFormat)
+$(deriveJsonEnum 5 ''ReasoningFormat)
 
 data CitationOptions
     = CitationOptionsEnabled
     | CitationOptionsDisabled
     deriving (Show, Eq, Ord, Generic)
 
-$(deriveJSON (sumOptions 15) ''CitationOptions)
+$(deriveJsonEnum 15 ''CitationOptions)
 
 data ChatMessage = ChatMessage
     { role :: ChatRole
@@ -119,7 +120,7 @@ mkSysChatMessage msg =
     Only messages really work at the moment
 -}
 data ChatCreateRequest = ChatCreateRequest
-    { messages :: [ChatMessage]
+    { messages :: Seq ChatMessage
     , model :: ModelId
     , citationOptions :: Maybe CitationOptions
     , compoundCustom :: Maybe Value
@@ -127,36 +128,22 @@ data ChatCreateRequest = ChatCreateRequest
     , disableToolValidation :: Maybe Bool
     , documents :: Maybe [Value]
     -- ^ TODO
-    , excludeDomains :: Maybe [Text]
-    , frequencyPenalty :: Maybe Double
-    , functionCall :: Maybe Value -- deprecated in favor of tool_choice
-
-    -- ^ TODO: low priority
-    , functions :: Maybe [Value] -- deprecated in favor of tools
-
-    -- ^ TODO: low priority
-    , includeDomains :: Maybe [Text]
     , includeReasoning :: Maybe Bool
-    , logitBias :: Maybe Value
-    -- ^ TODO
-    , logprobs :: Maybe Bool
     , maxCompletionTokens :: Maybe Int
-    , maxTokens :: Maybe Int -- deprecated
-    , metadata :: Maybe Value
-    -- ^ TODO
-    , n :: Maybe Int
     , parallelToolCalls :: Maybe Bool
-    , presencePenalty :: Maybe Double
     , reasoningEffort :: Maybe ReasoningEffort
+    -- ^ TODO only some models support this!
+    -- qwen3 models support the following values Set to 'none' to disable reasoning. Set to 'default' or null to let Qwen reason.
+    -- openai/gpt-oss-20b and openai/gpt-oss-120b support 'low', 'medium', or 'high'. 'medium' is the default value.
     , reasoningFormat :: Maybe ReasoningFormat
+    -- ^ TODO mutually exclusive with reasoning effort.
     , responseFormat :: Maybe Value
-    -- ^ TODO
+    -- ^ TODO add the options here
     , searchSettings :: Maybe Value
     -- ^ TODO
     , seed :: Maybe Int
     , serviceTier :: Maybe ServiceTier
     , stop :: Maybe Value -- string or array
-
     -- ^ TODO
     , store :: Maybe Bool
     , stream :: Maybe Bool
@@ -173,32 +160,21 @@ data ChatCreateRequest = ChatCreateRequest
     }
     deriving (Show, Eq, Generic)
 
-$(deriveJSON (jsonOptions 3) ''ChatCreateRequest)
+$(deriveJSON (jsonOptions 0) ''ChatCreateRequest)
 
 -- | Uses groq compound mini by default and includes no message
 instance Default ChatCreateRequest where
     def =
         ChatCreateRequest
-            { messages = []
+            { messages = mempty
             , model = def
             , citationOptions = Nothing
             , compoundCustom = Nothing
             , disableToolValidation = Nothing
             , documents = Nothing
-            , excludeDomains = Nothing
-            , frequencyPenalty = Nothing
-            , functionCall = Nothing
-            , functions = Nothing
-            , includeDomains = Nothing
             , includeReasoning = Nothing
-            , logitBias = Nothing
-            , logprobs = Nothing
             , maxCompletionTokens = Nothing
-            , maxTokens = Nothing
-            , metadata = Nothing
-            , n = Nothing
             , parallelToolCalls = Nothing
-            , presencePenalty = Nothing
             , reasoningEffort = Nothing
             , reasoningFormat = Nothing
             , responseFormat = Nothing
@@ -227,15 +203,6 @@ data ChatChoice = ChatChoice
 
 $(deriveJSON (jsonOptions 0) ''ChatChoice)
 
-data ChatUsageBreakdown = ChatUsageBreakdown
-    { promptTokens :: Maybe Int
-    , completionTokens :: Maybe Int
-    , totalTokens :: Maybe Int
-    }
-    deriving (Show, Eq, Generic)
-
-$(deriveJSON (jsonOptions 0) ''ChatUsageBreakdown)
-
 data ChatUsage = ChatUsage
     { queueTime :: Maybe Double
     , promptTokens :: Maybe Int
@@ -244,11 +211,18 @@ data ChatUsage = ChatUsage
     , completionTime :: Maybe Double
     , totalTokens :: Maybe Int
     , totalTime :: Maybe Double
-    , usageBreakdown :: Maybe ChatUsageBreakdown
     }
     deriving (Show, Eq, Generic)
 
 $(deriveJSON (jsonOptions 0) ''ChatUsage)
+
+data ChatUsageBreakdown = ChatUsageBreakdown
+    { model :: Maybe ModelId
+    , usage :: Maybe ChatUsage
+    }
+    deriving (Show, Eq, Generic)
+
+$(deriveJSON (jsonOptions 0) ''ChatUsageBreakdown)
 
 newtype ChatXGroq = ChatXGroq
     { cxId :: Maybe Text
@@ -265,6 +239,7 @@ data ChatCompletion = ChatCompletion
     , model :: Text
     , choices :: [ChatChoice]
     , usage :: Maybe ChatUsage
+    , usageBreakdown :: Maybe ChatUsageBreakdown
     , systemFingerprint :: Maybe Text
     , serviceTier :: Maybe ServiceTier
     , xGroq :: Maybe ChatXGroq
