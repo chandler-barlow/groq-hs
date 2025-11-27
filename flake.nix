@@ -28,7 +28,9 @@
           };
         };
 
-        packages.default = self'.packages.groq-hs;
+        packages = {
+          default = self'.packages.groq-hs;
+        };
 
 
       };

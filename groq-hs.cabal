@@ -8,6 +8,11 @@ author:             chandler-barlow
 maintainer:         chandlerbrlw@gmail.com
 build-type:         Simple
 extra-doc-files:    CHANGELOG.md
+data-dir: 
+    test/golden/
+data-files:
+    chat_request.json
+    chat_response.json
 
 
 common warnings
