@@ -17,3 +17,5 @@ jobs:
         uses: DeterminateSystems/determinate-nix-action@v3
       - name: Packages build
         run: nix build
+      - name: Flake check
+        run: nix flake check
