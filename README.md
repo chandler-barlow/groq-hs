@@ -2,7 +2,7 @@
 groq cloud library for haskell
 
 # TODO
-- [] add tools ( for agents )
+- add tools ( for agents )
 
 # Example
 
