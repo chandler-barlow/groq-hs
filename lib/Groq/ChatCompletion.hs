@@ -173,7 +173,7 @@ data ResponseFormat
   = ResponseText
   | ResponseJSON
   | ResponseJSONSchema Value
-  deriving (Show)
+  deriving (Eq, Show)
 
 instance FromJSON ResponseFormat where
   parseJSON (Object x) = do
@@ -205,7 +205,7 @@ data SearchSettings = SearchSettings
   , includeDomains :: Maybe [String]
   , includeImages :: Maybe Bool
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 $(deriveJSON (jsonOptions 0) ''SearchSettings)
 
@@ -257,7 +257,7 @@ data ChatCreateRequest = ChatCreateRequest
   , topP :: Maybe Double
   , user :: Maybe Text
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 $(deriveJSON (jsonOptions 0) ''ChatCreateRequest)
 

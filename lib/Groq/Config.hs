@@ -18,7 +18,7 @@ data APIKey
     FromFile FilePath
   | -- | Just directly pass an api key in
     APIKey String
-  deriving (Generic)
+  deriving (Generic, Show, Eq)
   deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
 
 {- |
@@ -59,7 +59,7 @@ data GroqCfg = GroqCfg
   are the only options.
   -}
   }
-  deriving (Generic)
+  deriving (Generic, Show, Eq)
   deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
 
 instance Default GroqCfg where

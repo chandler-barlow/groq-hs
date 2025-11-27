@@ -79,6 +79,7 @@ executable groq-hs-test
     build-depends:
         base,
         tasty,
+        data-default,
         aeson,
         tasty-hunit,
         bytestring,
