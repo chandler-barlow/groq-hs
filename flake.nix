@@ -30,24 +30,7 @@
 
         packages.default = self'.packages.groq-hs;
 
-        treefmt.config = {
-            # inherit (config.flake-root) projectRootFile;
-            package = pkgs.treefmt;
-            flakeFormatter = false; # For https://github.com/numtide/treefmt-nix/issues/55
 
-            programs.ormolu.enable = true;
-            programs.nixpkgs-fmt.enable = true;
-            programs.cabal-fmt.enable = true;
-            programs.hlint.enable = true;
-
-            programs.ormolu.package = pkgs.haskellPackages.fourmolu;
-            settings.formatter.ormolu = {
-              options = [
-                "--ghc-opt"
-                "-XImportQualifiedPost"
-              ];
-            };
-        };
       };
 
     };

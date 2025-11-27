@@ -3,7 +3,8 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeOperators #-}
 
-import Control.Monad (forever)
+import Control.Monad 
+  (forever)
 import qualified Control.Monad.Error.Class as Error
 import Control.Monad.IO.Class (MonadIO (..))
 import qualified Data.Aeson as Aeson
