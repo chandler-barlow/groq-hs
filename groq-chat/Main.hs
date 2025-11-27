@@ -3,8 +3,9 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeOperators #-}
 
-import Control.Monad 
-  (forever)
+import Control.Monad (
+  forever,
+ )
 import qualified Control.Monad.Error.Class as Error
 import Control.Monad.IO.Class (MonadIO (..))
 import qualified Data.Aeson as Aeson
@@ -34,12 +35,12 @@ groqChat cfg = Groq.execGroq cfg $ do
     puts = liftIO . putStrLn
   puts $
     unlines
-      [ "+-----------------------------------------------------+",
-        "| Welcome to a groq-chat!                             |",
-        "| A sample cli for testing the haskell lib `groq-hs`  |",
-        "| Make sure that you have the var GROQ_API_KEY set,   |",
-        "| otherwise this application will not work...         |",
-        "+-----------------------------------------------------+"
+      [ "+-----------------------------------------------------+"
+      , "| Welcome to a groq-chat!                             |"
+      , "| A sample cli for testing the haskell lib `groq-hs`  |"
+      , "| Make sure that you have the var GROQ_API_KEY set,   |"
+      , "| otherwise this application will not work...         |"
+      , "+-----------------------------------------------------+"
       ]
   forever $ do
     puts "[USER]"

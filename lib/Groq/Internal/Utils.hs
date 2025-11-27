@@ -11,8 +11,8 @@ import Text.Casing
 jsonOptions :: Int -> Options
 jsonOptions prefixLen =
   defaultOptions
-    { fieldLabelModifier = camelTo2 '_' . drop prefixLen,
-      omitNothingFields = True
+    { fieldLabelModifier = camelTo2 '_' . drop prefixLen
+    , omitNothingFields = True
     }
 
 sumOptions :: Int -> Options

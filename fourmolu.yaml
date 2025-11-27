@@ -1,7 +1,7 @@
 indentation: 2
 column-limit: none
 function-arrows: trailing
-comma-style: trailing
+comma-style: leading
 record-style: aligned
 import-export-style: diff-friendly
 import-grouping: by-scope

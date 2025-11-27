@@ -2,6 +2,8 @@
 
 module Groq.Internal where
 
+import Control.Exception (try)
+import Control.Exception.Base (IOException)
 import Control.Monad (forM_)
 import Control.Monad.Error.Class
 import Control.Monad.Except
@@ -10,6 +12,7 @@ import Control.Monad.State
 import Data.Aeson qualified as Aeson
 import Data.Default (Default (..))
 import Data.Generics.Labels ()
+import Data.Maybe (listToMaybe)
 import Data.Sequence
 import Data.Text qualified as T
 import Data.Text.Encoding (encodeUtf8)
@@ -22,10 +25,10 @@ import System.Environment
 import Groq.ChatCompletion
 import Groq.Config (APIKey (..), GroqCfg)
 
-type GroqTRep m = ExceptT GroqError (StateT GroqCtx m)
+type GroqTRep m = (StateT GroqCtx (ExceptT GroqError m))
 
 newtype GroqT m a = GroqT
-  { runGroqT :: ExceptT GroqError (StateT GroqCtx m) a
+  { runGroqT :: GroqTRep m a
   }
   deriving newtype (Applicative, Functor, Monad)
   deriving (MonadIO) via GroqTRep m
@@ -42,9 +45,9 @@ groqBase :: Url Https
 groqBase = https "api.groq.com" /: "openai" /: "v1"
 
 data GroqCtx = GroqCtx
-  { apiKey :: GroqAPIKey,
-    chatCtx :: ChatCreateRequest,
-    groqUrl :: Url Https
+  { apiKey :: GroqAPIKey
+  , chatCtx :: ChatCreateRequest
+  , groqUrl :: Url Https
   }
   deriving (Generic, Show)
 
@@ -55,13 +58,24 @@ instance Show GroqError where
 
 type GroqAPIKey = T.Text
 
-loadApiKey :: (MonadIO m) => APIKey -> m T.Text
-loadApiKey (FromEnv var) = fmap T.pack . liftIO $ getEnv var
+loadApiKey :: (MonadIO m) => APIKey -> m (Either GroqError T.Text)
+loadApiKey =
+  \case
+    APIKey key -> runExceptT . pure $ T.pack key
+    FromEnv var -> runExceptT $ fmap T.pack . liftIO $ getEnv var
+    FromFile file -> runExceptT $ do
+      file' <- liftIO . try @IOException $ readFile file
+      case file' of
+        Left _ -> throwError . GroqError $ "File failed to load. Does it exist?"
+        Right xs ->
+          case listToMaybe (lines xs) of
+            Nothing -> throwError . GroqError $ "API key file was empty."
+            Just x -> pure $ T.pack x
 
 -- | Attempts to load groq api key from GROQ_API_KEY
-initGroq :: (MonadIO m) => GroqCfg -> m GroqCtx
-initGroq cfg = do
-  apiKey <- loadApiKey $ cfg ^. #apiKey -- The only reason it's monadic
+initGroq :: (MonadIO m) => GroqCfg -> m (Either GroqError GroqCtx)
+initGroq cfg = runExceptT $ do
+  apiKey <- ExceptT . loadApiKey $ cfg ^. #apiKey -- The only reason it's monadic
   let
     groqUrl = groqBase
     setSystemPrompt =
@@ -77,9 +91,9 @@ initGroq cfg = do
         & setSystemPrompt
   pure $
     GroqCtx
-      { chatCtx,
-        apiKey,
-        groqUrl
+      { chatCtx
+      , apiKey
+      , groqUrl
       }
 
 upsertChatMessage :: ChatMessage -> GroqCtx -> GroqCtx
@@ -105,8 +119,8 @@ makeRequest = do
     url = view #groqUrl ctx /: "chat" /: "completions"
     opts =
       mconcat
-        [ header "Authorization" $ "Bearer " <> encodeUtf8 (ctx ^. #apiKey),
-          header "Content-Type" "application/json"
+        [ header "Authorization" $ "Bearer " <> encodeUtf8 (ctx ^. #apiKey)
+        , header "Content-Type" "application/json"
         ]
     reqBody = Aeson.toJSON $ ctx ^. #chatCtx
   r <-

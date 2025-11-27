@@ -35,15 +35,60 @@ import Groq.ChatCompletion (
 import Groq.Config
 import Groq.Internal
 
+{- |
+  Used to run computations in the groq monad.
+  Requires a config object to initialize chat state.
+
+  @@
+    {\- # LANGUAGE OverloadedStrings #-\}
+
+    module Main where
+
+    import Data.Default (def)
+    import Groq (execGroq)
+
+    main :: IO ()
+    main = execGroq def $ pure ()
+  @@
+-}
 execGroq :: (MonadIO m) => GroqCfg -> GroqT m a -> m (Either GroqError a)
-execGroq cfg fn = do
-  ctx <- initGroq cfg
+execGroq cfg fn = runExceptT $ do
+  ctx <- ExceptT $ initGroq cfg
   fmap fst
     . flip runStateT ctx
-    . runExceptT
     $ runGroqT fn
 
--- | Send a prompt to groq as a user
+{- |
+  Send a prompt to the llm from inside of a groq computation
+
+  @@
+    {\- # LANGUAGE OverloadedStrings #-\}
+
+    module Main where
+
+    import Data.Default (def)
+    import Groq (execGroq, prompt)
+
+    main :: IO ()
+    main = do
+      response <- execGroq def $ prompt "Hello world!"
+      case response of
+        Left _ -> print "failure occurred"
+        Right msg -> print msg
+  @@
+
+  You are free to prompt the llm as much as you like inside of the groq monad as well.
+  This example spams "hello world!" to the llm.
+
+  @@
+    main :: IO ()
+    main = void . execGroq def . forever $ do
+        response <- prompt "Hello world!"
+        case response of
+          Left _ -> liftIO $ print "failure occurred"
+          Right msg -> liftIO $ print msg
+  @@
+-}
 prompt :: (MonadIO m) => Text -> GroqT m Text
 prompt msg = do
   let
@@ -58,9 +103,16 @@ prompt msg = do
     Nothing -> throwError $ GroqError "Error: Absurd, no request was ever made"
     Just x -> pure x
 
-{- | helper function for editing the set of documents
-that the model has access to
+{- |
+  Groq cloud allows you to pass documents to the llm.
+  It will be able to reference these when responding.
+  The id of the document will be the name referenced in
+  response.
+
+  Documents can be either text, or json objects.
 -}
+
+-- | Update/adjust the set of documents available
 updateDocuments ::
   (Monad m) =>
   (Set.Set Document -> Set.Set Document) ->

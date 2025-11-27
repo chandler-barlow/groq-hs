@@ -62,6 +62,6 @@ golden :: TestTree
 golden =
   testGroup
     "All aeson instances round trip golden copies"
-    [ goldenChatRequest,
-      goldenChatResponse
+    [ goldenChatRequest
+    , goldenChatResponse
     ]
