@@ -1,6 +1,11 @@
 # groq-hs
 groq cloud library for haskell
 
+# TODO
+- [] Add compound custom. Not sure what that is though
+- [] Add documents
+- []
+- []
 
 # Goals
 The current goal of this project is to provide a nice chat/conversation interface for groq cloud.

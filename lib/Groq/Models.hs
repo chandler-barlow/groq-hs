@@ -1,13 +1,13 @@
 {- HLINT ignore "Use camelCase" -}
-module Groq.Types.Models
-  ( ModelId(..)
-  , fromId
-  ) where
+module Groq.Models (
+  ModelId (..),
+  fromId,
+) where
 
 import Data.Aeson qualified as Aeson
 import Data.Aeson.Types qualified as Aeson
-import Data.Text qualified as Text
 import Data.Default
+import Data.Text qualified as Text
 
 data ModelId
   = Model_meta_llama_llama_4_maverick_17b_128e_instruct
@@ -30,7 +30,7 @@ data ModelId
   | Model_moonshotai_kimi_k2_instruct_0905
   | Model_qwen_qwen3_32b
   | Model_whisper_large_v3
-  deriving (Eq, Ord, Enum, Bounded)
+  deriving (Bounded, Enum, Eq, Ord)
 
 instance Default ModelId where
   def = Model_groq_compound_mini
@@ -39,13 +39,14 @@ instance Aeson.ToJSON ModelId where
   toJSON = Aeson.String . Text.pack . show
 
 instance Aeson.FromJSON ModelId where
-    parseJSON (Aeson.String m) = 
-      case fromId (Text.unpack m) of
-        Just model -> pure model
-        Nothing -> Aeson.parseFail "Model failed to parse"
-    parseJSON invalid =
-        Aeson.prependFailure "Model failed"
-            (Aeson.typeMismatch "String" invalid)
+  parseJSON (Aeson.String m) =
+    case fromId (Text.unpack m) of
+      Just model -> pure model
+      Nothing -> Aeson.parseFail "Model failed to parse"
+  parseJSON invalid =
+    Aeson.prependFailure
+      "Model failed"
+      (Aeson.typeMismatch "String" invalid)
 
 instance Show ModelId where
   show Model_meta_llama_llama_4_maverick_17b_128e_instruct =

@@ -31,16 +31,19 @@ library
     import: warnings, opts
     hs-source-dirs:   lib
     exposed-modules:  
-        Utils,
         Groq,
-        Groq.Types.Models,
-        Groq.Types.ChatCompletion
+        Groq.Internal,
+        Groq.Internal.Utils,
+        Groq.Config,
+        Groq.Models,
+        Groq.ChatCompletion
     build-depends:    
         base,
         aeson,
         containers,
         mtl,
         data-default,
+        profunctors,
         req,
         template-haskell,
         casing,
