@@ -2,14 +2,7 @@
 groq cloud library for haskell
 
 # TODO
-- [] Add compound custom. Not sure what that is though
-- [] Add documents
-- []
-- []
-
-# Goals
-The current goal of this project is to provide a nice chat/conversation interface for groq cloud.
-Currently audio, responses, documents etc are out of scope. I will probably get to these at some point, but not today!
+- [] add tools ( for agents )
 
 # Example
 
@@ -30,5 +23,4 @@ main = do
     Right msg -> putStrLn $ "Got message " ++ T.unpack msg
 ```
 
-All of the prompts are executed inside of `GroqT m` which will work with and `MonadIO m`.
-The transformer exists to maintain Groq conversation state in between responses.
+Additionally there is an example application called `groq-chat` that can be run via `nix run .#groq-chat`. This demo program let's you talk to some llm on groq cloud using a groq api key.
