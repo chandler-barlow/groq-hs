@@ -18,4 +18,4 @@ jobs:
       - name: Packages build
         run: nix build
       - name: Run tests
-        run: ./result/bin/groq-hs-test
+        run: nix run .#groq-hs-test

@@ -25,13 +25,13 @@
             };
             # Check that haskell-language-server works
             hlsCheck.enable = true; # Requires sandbox to be disabled
+            # enableSeparateBinOutput = true;
           };
         };
 
         packages = {
           default = self'.packages.groq-hs;
         };
-
 
       };
 
