@@ -1,3 +1,4 @@
+# *WARNING* I am not planning on maintaining this further, when I initially created this I didn't realize that there are already very good openai bindings for haskell :)
 # groq-hs
 groq cloud library for haskell
 
